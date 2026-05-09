@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "site": "ruix-game",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

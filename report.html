@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruix - Laporan Kuis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Public Sans', sans-serif; 
+            background-image: url('Photos/mcpe.jpeg'); 
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+        .neo-shadow { box-shadow: 8px 8px 0px 0px rgba(0,0,0,1); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    
+    <header class="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b-4 border-black flex justify-between items-center px-6 py-4">
+        <h1 class="text-4xl font-black tracking-tighter text-black uppercase">Ruix</h1>
+    </header>
+
+    <main class="flex-grow flex flex-col items-center p-6 my-12">
+        
+        <div class="bg-white border-4 border-black p-8 w-full max-w-4xl neo-shadow">
+            
+            <div class="mb-8 text-left border-b-4 border-black pb-6">
+                <h2 class="text-5xl font-black text-black uppercase mb-2">Hasil Kuis</h2>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-black text-white text-left uppercase text-sm tracking-widest">
+                            <th class="p-4 border-2 border-black">Peringkat</th>
+                            <th class="p-4 border-2 border-black">Nama Siswa</th>
+                            <th class="p-4 border-2 border-black text-right">Skor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body" class="font-bold text-lg">
+                     </tbody>
+                </table>
+            </div>
+
+            <div class="mt-8 text-red-600 font-black text-lg leading-tight uppercase italic">
+                <p>Foto sebelum keluar!</p>
+                <p>Sebab hasil quiz akan dihapus saat anda keluar dari halaman ini.</p>
+            </div>
+
+            <div class="mt-10 flex justify-end">
+                <button onclick="exitReport()" class="bg-[#FF4D4D] text-white border-4 border-black px-10 py-4 text-xl font-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all uppercase flex items-center gap-3">
+                    Keluar Ke Sign In 🚪
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer: Ukuran Normal -->
+    <footer class="bg-black text-white py-10 px-6 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] font-bold uppercase tracking-widest mt-auto border-t-4 border-black">
+        <div class="text-center md:text-left">
+            <p class="text-xl mb-1 font-black text-white">Ruix</p>
+            <p class="text-gray-400">© 2026 Ruix. Hak cipta milik Khanukh_Matha/Radit</p>
+        </div>
+        <div class="flex gap-6 text-gray-400 items-center">
+            <a href="privacy.html" class="hover:text-white transition-colors">Privacy</a>
+            <a href="terms.html" class="hover:text-white transition-colors">Terms</a>
+            <a href="help.html" class="hover:text-white transition-colors">Help</a>
+            <div class="flex gap-2">
+                <span id="btn-privacy" class="bg-white text-black border-2 border-white px-2 py-1 hover:bg-gray-200 cursor-pointer">@</span>
+                <span id="btn-share" class="bg-white text-black border-2 border-white px-2 py-1 hover:bg-gray-200 cursor-pointer">Share</span>
+            </div>
+        </div>
+    </footer>
+<script type="module" src="script.js"></script>
+</body>
+</html>
