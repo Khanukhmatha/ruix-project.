@@ -6,13 +6,13 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } f
 import { getDatabase, ref, set, update, onValue, get, remove, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCy3ZnU7qnUNjh7Xy_oWnGtgGwhGYAFQ_w",
-  authDomain: "ruix-b8930.firebaseapp.com",
-  databaseURL: "https://ruix-b8930-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "ruix-b8930",
-  storageBucket: "ruix-b8930.firebasestorage.app",
-  messagingSenderId: "795626700124",
-  appId: "1:795626700124:web:ed12ec7bea6203a33e1599"
+    apiKey: "AIzaSyCy3ZnU7qnUNjh7Xy_oWnGtgGwhGYAFQ_w",
+    authDomain: "ruix-b8930.firebaseapp.com",
+    databaseURL: "https://ruix-b8930-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "ruix-b8930",
+    storageBucket: "ruix-b8930.firebasestorage.app",
+    messagingSenderId: "795626700124",
+    appId: "1:795626700124:web:ed12ec7bea6203a33e1599"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -25,16 +25,25 @@ const db = getDatabase(app);
 window.fetchQuote = async function() {
     const text = document.getElementById('quote-text');
     const author = document.getElementById('quote-author');
-    if (!text) return; // Kalau tidak ada kotak quote, jangan jalankan
+    if (!text) return; 
 
-    text.innerText = "Memuat pesan motivasi...";
     try {
-        const res = await fetch('https://api.adviceslip.com/advice?t=' + Date.now());
+        const res = await fetch('https://api.adviceslip.com/advice?t=' + new Date().getTime(), { cache: 'no-store' });
+        if (!res.ok) throw new Error("Network response was not ok");
         const data = await res.json();
         text.innerText = `"${data.slip.advice}"`;
         if (author) author.innerText = "— Ruix System";
     } catch (e) {
-        text.innerText = "Fokus adalah kunci kemenangan hari ini!";
+        console.error("API Quote terblokir, beralih ke memori lokal:", e);
+        const fallbackQuotes = [
+            "Fokus adalah kunci kemenangan hari ini!",
+            "Satu bug diperbaiki, seribu ilmu didapatkan.",
+            "Kerja sama adalah senjata rahasia kita.",
+            "Jangan panik, baca dokumentasinya pelan-pelan.",
+            "Pendidikan adalah senjata paling ampuh untuk mengubah dunia."
+        ];
+        const randomQ = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
+        text.innerText = `"${randomQ}"`;
         if (author) author.innerText = "— Ruix System";
     }
 };
@@ -45,7 +54,7 @@ window.fetchQuote = async function() {
 
 // --- LOGIKA LOGIN ---
 if (document.getElementById('login-form')) {
-    window.fetchQuote(); // MENGGUNAKAN NAMA FUNGSI YANG BENAR
+    window.fetchQuote(); 
     document.getElementById('login-form').addEventListener('submit', async (e) => {
         e.preventDefault(); 
         
@@ -55,14 +64,6 @@ if (document.getElementById('login-form')) {
         const email = emailInput ? emailInput.value.trim() : ""; 
         const password = passwordInput ? passwordInput.value : "";
         
-        const btn = e.target.querySelector('button') || e.target.querySelector('input[type="submit"]');
-        
-        if (btn) {
-            btn.disabled = true;
-            btn.innerText = "MEMPROSES...";
-            if(btn.value) btn.value = "MEMPROSES...";
-        }
-
         try {
             await signInWithEmailAndPassword(auth, email, password);
             window.location.href = 'dashboard.html';
@@ -71,12 +72,6 @@ if (document.getElementById('login-form')) {
             if (err.code === 'auth/invalid-email') alert("Format email salah!");
             else if (err.code === 'auth/invalid-credential') alert("Email atau Password salah!");
             else alert("Login Gagal: " + err.message);
-
-            if (btn) {
-                btn.disabled = false;
-                btn.innerText = "Masuk ke Dashboard";
-                if(btn.value) btn.value = "Masuk ke Dashboard";
-            }
         }
     });
 }
@@ -90,17 +85,10 @@ if (signupForm) {
         e.preventDefault();
         
         const inputs = e.target.querySelectorAll('input');
-        const btn = e.target.querySelector('button');
-
         const email = inputs[1] ? inputs[1].value.trim() : inputs[0].value.trim();
         const password = inputs[2] ? inputs[2].value.trim() : inputs[1].value.trim();
 
         if (!email || !password) return alert("Email dan Password harus diisi!");
-
-        if (btn) {
-            btn.disabled = true;
-            btn.innerText = "⏳ MENDAFTARKAN AKUN...";
-        }
 
         try {
             await createUserWithEmailAndPassword(auth, email, password);
@@ -109,10 +97,6 @@ if (signupForm) {
         } catch (err) {
             console.error("Error Daftar:", err.code);
             alert("Gagal Daftar: " + err.message);
-            if (btn) {
-                btn.disabled = false;
-                btn.innerText = "DAFTAR";
-            }
         }
     });
 }
@@ -152,12 +136,6 @@ if (document.getElementById('questionInput')) {
             return alert("Buat minimal 1 soal terlebih dahulu!");
         }
 
-        const allBtns = document.querySelectorAll('button');
-        allBtns.forEach(b => {
-            b.disabled = true;
-            if (b.innerText.includes("Selesai")) b.innerText = "⏳ MENYIMPAN KE CLOUD...";
-        });
-
         if (qInput !== "") window.nextQuestion();
 
         const pin = Math.floor(100000 + Math.random() * 900000).toString();
@@ -174,7 +152,6 @@ if (document.getElementById('questionInput')) {
             window.location.href = 'ongoing.html';
         } catch (err) { 
             alert("Gagal Simpan ke Server: " + err.message); 
-            allBtns.forEach(b => b.disabled = false);
         }
     };
 }
@@ -204,9 +181,6 @@ if (document.getElementById('generatedPin')) {
 
         window.stopQuiz = async function() {
             if (confirm("Hentikan kuis secara paksa sekarang?")) {
-                const btns = document.querySelectorAll('button');
-                btns.forEach(b => { b.disabled = true; b.innerText = "MENGHENTIKAN..."; });
-                
                 await update(ref(db, `quizzes/${pin}`), { status: "finished" });
                 window.location.href = 'report.html';
             }
@@ -223,14 +197,8 @@ if (document.getElementById('quizPin')) {
     window.startQuiz = async function() {
         const name = document.getElementById('groupName').value.trim();
         const pin = document.getElementById('quizPin').value.trim();
-        const btn = document.querySelector('button[onclick="startQuiz()"]');
         
         if (!name || !pin) return alert("Isi Nama & PIN dulu ya!");
-
-        if (btn) { 
-            btn.disabled = true; 
-            btn.innerText = "⏳ MENGECEK PIN..."; 
-        }
 
         try {
             const snap = await get(ref(db, `quizzes/${pin}`));
@@ -243,11 +211,9 @@ if (document.getElementById('quizPin')) {
                 window.location.href = 'quiz.html';
             } else { 
                 alert("Waduh, PIN Salah atau Kuis Sudah Ditutup!"); 
-                if (btn) { btn.disabled = false; btn.innerText = "Ayo Main! 🚀"; }
             }
         } catch (err) { 
             alert("Koneksi Error: " + err.message); 
-            if (btn) { btn.disabled = false; btn.innerText = "Ayo Main! 🚀"; }
         }
     };
 }
@@ -269,10 +235,7 @@ if (document.getElementById('questionText')) {
         
         ['A','B','C','D'].forEach(opt => {
             const textSpan = document.getElementById(`textOpt${opt}`);
-            const btn = textSpan.parentElement;
             textSpan.innerText = q[opt.toLowerCase()];
-            btn.disabled = false;
-            btn.style.opacity = "1"; 
         });
         
         document.getElementById('currentPoints').innerText = `${score} pts`;
@@ -299,8 +262,6 @@ if (document.getElementById('questionText')) {
 
     window.checkAnswer = async function(choice) {
         clearInterval(timerInterval);
-        const btns = document.querySelectorAll('main button');
-        btns.forEach(b => { b.disabled = true; b.style.opacity = "0.5"; });
 
         if (choice === questions[idx].correct) score += 100;
         else score = Math.max(0, score - 50);
@@ -308,7 +269,7 @@ if (document.getElementById('questionText')) {
         try {
             await update(ref(db, `quizzes/${pin}/students/${name}`), { score: score });
             idx++;
-            setTimeout(loadQ, 400); 
+            setTimeout(loadQ, 200); 
         } catch (e) { 
             console.error(e);
             idx++; 
@@ -385,9 +346,6 @@ if (document.getElementById('leaderboard-body')) {
 
     window.exitReport = async function() {
         if (confirm("Data skor kuis akan dihapus secara permanen dari server. Pastikan Anda sudah mencatatnya. Lanjutkan?")) {
-            const btns = document.querySelectorAll('button');
-            btns.forEach(b => { b.disabled = true; b.innerText = "MENGHAPUS DATA..."; });
-            
             const pin = localStorage.getItem('ruix_active_pin');
             try {
                 if (pin) await remove(ref(db, `quizzes/${pin}`));
@@ -395,7 +353,6 @@ if (document.getElementById('leaderboard-body')) {
                 window.location.href = 'signin.html';
             } catch (err) {
                 alert("Gagal menghapus data: " + err.message);
-                btns.forEach(b => { b.disabled = false; b.innerText = "Keluar Ke Sign In 🚪"; });
             }
         }
     };
