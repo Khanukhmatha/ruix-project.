@@ -1,5 +1,5 @@
 // ==========================================
-// 1. IMPORT & INISIALISASI (VERSI MODULAR)
+// 1. IMPORT & KONFIGURASI FIREBASE
 // ==========================================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -20,307 +20,383 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // ==========================================
-// 2. FITUR GLOBAL (FOOTER & QUOTE)
+// 2. FITUR GLOBAL (QUOTE)
 // ==========================================
-async function fetchGlobalQuote(textId, authorId) {
-    const quoteText = document.getElementById(textId);
-    if (!quoteText) return;
+window.fetchQuote = async function() {
+    const text = document.getElementById('quote-text');
+    const author = document.getElementById('quote-author');
+    if (!text) return; // Kalau tidak ada kotak quote, jangan jalankan
+
+    text.innerText = "Memuat pesan motivasi...";
     try {
-        const response = await fetch('https://api.adviceslip.com/advice?t=' + new Date().getTime());
-        const data = await response.json();
-        quoteText.innerText = `"${data.slip.advice}"`;
-        if (document.getElementById(authorId)) document.getElementById(authorId).innerText = "— Wise Advice";
+        const res = await fetch('https://api.adviceslip.com/advice?t=' + Date.now());
+        const data = await res.json();
+        text.innerText = `"${data.slip.advice}"`;
+        if (author) author.innerText = "— Ruix System";
     } catch (e) {
-        quoteText.innerText = "Kerja sama tim adalah kunci kemenangan!";
+        text.innerText = "Fokus adalah kunci kemenangan hari ini!";
+        if (author) author.innerText = "— Ruix System";
+    }
+};
+
+// ==========================================
+// 3. AUTH LOGIC (SIGN IN / SIGN UP) 
+// ==========================================
+
+// --- LOGIKA LOGIN ---
+if (document.getElementById('login-form')) {
+    window.fetchQuote(); // MENGGUNAKAN NAMA FUNGSI YANG BENAR
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault(); 
+        
+        const emailInput = document.getElementById('email-input');
+        const passwordInput = document.getElementById('password-input');
+        
+        const email = emailInput ? emailInput.value.trim() : ""; 
+        const password = passwordInput ? passwordInput.value : "";
+        
+        const btn = e.target.querySelector('button') || e.target.querySelector('input[type="submit"]');
+        
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "MEMPROSES...";
+            if(btn.value) btn.value = "MEMPROSES...";
+        }
+
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            window.location.href = 'dashboard.html';
+        } catch (err) { 
+            console.error("Detail Error Auth:", err.code, err.message); 
+            if (err.code === 'auth/invalid-email') alert("Format email salah!");
+            else if (err.code === 'auth/invalid-credential') alert("Email atau Password salah!");
+            else alert("Login Gagal: " + err.message);
+
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "Masuk ke Dashboard";
+                if(btn.value) btn.value = "Masuk ke Dashboard";
+            }
+        }
+    });
+}
+
+// --- LOGIKA DAFTAR (SIGN UP) ---
+const signupForm = document.getElementById('signup-form');
+if (signupForm) {
+    window.fetchQuote();
+
+    signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const inputs = e.target.querySelectorAll('input');
+        const btn = e.target.querySelector('button');
+
+        const email = inputs[1] ? inputs[1].value.trim() : inputs[0].value.trim();
+        const password = inputs[2] ? inputs[2].value.trim() : inputs[1].value.trim();
+
+        if (!email || !password) return alert("Email dan Password harus diisi!");
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "⏳ MENDAFTARKAN AKUN...";
+        }
+
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            alert("Akun Berhasil Dibuat! Silakan login.");
+            window.location.href = 'signin.html';
+        } catch (err) {
+            console.error("Error Daftar:", err.code);
+            alert("Gagal Daftar: " + err.message);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "DAFTAR";
+            }
+        }
+    });
+}
+
+// ==========================================
+// 4. GURU: DASHBOARD (BUAT SOAL)
+// ==========================================
+let dashboardQuestions = [];
+if (document.getElementById('questionInput')) {
+    const updateNumbers = () => {
+        const current = dashboardQuestions.length + 1;
+        document.getElementById('questionNumber').innerText = current;
+        document.getElementById('nextBtnNum').innerText = current + 1;
+        document.getElementById('savedCount').innerText = dashboardQuestions.length;
+    };
+
+    window.nextQuestion = function() {
+        const q = document.getElementById('questionInput').value.trim();
+        const a = document.getElementById('optA').value.trim();
+        const b = document.getElementById('optB').value.trim();
+        const c = document.getElementById('optC').value.trim();
+        const d = document.getElementById('optD').value.trim();
+        const correct = document.querySelector('input[name="correctKey"]:checked')?.value;
+
+        if (q && a && b && c && d && correct) {
+            dashboardQuestions.push({ q, a, b, c, d, correct });
+            ['questionInput', 'optA', 'optB', 'optC', 'optD'].forEach(id => document.getElementById(id).value = '');
+            updateNumbers();
+        } else { 
+            alert("Harap lengkapi semua teks soal dan opsi!"); 
+        }
+    };
+
+    window.finishQuiz = async function() {
+        const qInput = document.getElementById('questionInput').value.trim();
+        if (dashboardQuestions.length === 0 && qInput === "") {
+            return alert("Buat minimal 1 soal terlebih dahulu!");
+        }
+
+        const allBtns = document.querySelectorAll('button');
+        allBtns.forEach(b => {
+            b.disabled = true;
+            if (b.innerText.includes("Selesai")) b.innerText = "⏳ MENYIMPAN KE CLOUD...";
+        });
+
+        if (qInput !== "") window.nextQuestion();
+
+        const pin = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        try {
+            await set(ref(db, `quizzes/${pin}`), {
+                questions: dashboardQuestions,
+                status: "active",
+                createdAt: new Date().toISOString()
+            });
+            
+            localStorage.setItem('ruix_active_pin', pin);
+            localStorage.setItem('ruix_questions', JSON.stringify(dashboardQuestions));
+            window.location.href = 'ongoing.html';
+        } catch (err) { 
+            alert("Gagal Simpan ke Server: " + err.message); 
+            allBtns.forEach(b => b.disabled = false);
+        }
+    };
+}
+
+// ==========================================
+// 5. GURU: ONGOING (MONITORING LIVE)
+// ==========================================
+if (document.getElementById('generatedPin')) {
+    const pin = localStorage.getItem('ruix_active_pin');
+    if (!pin) window.location.href = 'dashboard.html';
+    else {
+        document.getElementById('generatedPin').innerText = pin;
+        const qs = JSON.parse(localStorage.getItem('ruix_questions') || '[]');
+        document.getElementById('totalQuestions').innerText = qs.length;
+
+        onChildAdded(ref(db, `quizzes/${pin}/students`), (snap) => {
+            const name = snap.key;
+            const list = document.getElementById('studentList');
+            const waitMsg = document.getElementById('waitingMessage');
+            
+            if (waitMsg) waitMsg.remove();
+            if (!document.getElementById(`student-${name}`)) {
+                list.innerHTML += `<div id="student-${name}" class="bg-black text-white px-4 py-2 rounded-full font-bold uppercase text-sm border-2 border-[#BD00FF]">${name}</div>`;
+            }
+            document.getElementById('studentCount').innerText = list.children.length;
+        });
+
+        window.stopQuiz = async function() {
+            if (confirm("Hentikan kuis secara paksa sekarang?")) {
+                const btns = document.querySelectorAll('button');
+                btns.forEach(b => { b.disabled = true; b.innerText = "MENGHENTIKAN..."; });
+                
+                await update(ref(db, `quizzes/${pin}`), { status: "finished" });
+                window.location.href = 'report.html';
+            }
+        };
     }
 }
 
 // ==========================================
-// 3. LOGIKA GURU: SIGN IN & SIGN UP (VERSI KEBAL ERROR)
-// ==========================================
-if (document.getElementById('login-form')) {
-    fetchGlobalQuote('quote-text', 'quote-author');
-    document.getElementById('login-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        try {
-            // Ambil elemen input ke-1 (Email) dan ke-2 (Password) di form login
-            const inputs = document.getElementById('login-form').getElementsByTagName('input');
-            const email = inputs[0].value;
-            const password = inputs[1].value;
-            
-            signInWithEmailAndPassword(auth, email, password)
-                .then(() => {
-                    alert("Login Berhasil!");
-                    window.location.href = 'dashboard.html';
-                })
-                .catch((err) => alert("Gagal Login: " + err.message));
-        } catch (error) {
-            console.error("Ada masalah di form login HTML:", error);
-            alert("Error sistem! Cek F12 Console.");
-        }
-    });
-}
-
-if (document.getElementById('signup-form')) {
-    fetchGlobalQuote('quote-text', 'quote-author');
-    document.getElementById('signup-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        try {
-            // Karena di signup ada Nama (0), Email (1), dan Password (2)
-            const inputs = document.getElementById('signup-form').getElementsByTagName('input');
-            
-            // Ambil berdasarkan urutan kotak di HTML kamu
-            let email, password;
-            if (inputs.length >= 3) {
-                email = inputs[1].value; // Kotak ke-2
-                password = inputs[2].value; // Kotak ke-3
-            } else {
-                email = inputs[0].value;
-                password = inputs[1].value;
-            }
-            
-            createUserWithEmailAndPassword(auth, email, password)
-                .then(() => {
-                    alert("Akun Berhasil! Silakan Login.");
-                    window.location.href = 'signin.html';
-                })
-                .catch((err) => alert("Gagal Daftar: " + err.message));
-        } catch (error) {
-            console.error("Ada masalah di form signup HTML:", error);
-            alert("Error sistem! Cek F12 Console.");
-        }
-    });
-}
-// ==========================================
-// ==========================================
-// 4. LOGIKA GURU: DASHBOARD (BUAT SOAL)
-// ==========================================
-let dashboardQuestions = [];
-if (document.getElementById('questionInput')) {
-    window.nextQuestion = function() {
-        const q = document.getElementById('questionInput').value;
-        const a = document.getElementById('optA').value;
-        const b = document.getElementById('optB').value;
-        const c = document.getElementById('optC').value;
-        const d = document.getElementById('optD').value;
-        
-        // Ambil kunci jawaban (A/B/C/D)
-        const correctNode = document.querySelector('input[name="correctKey"]:checked');
-        const correct = correctNode ? correctNode.value : null;
-
-        if (q && a && b && c && d && correct) {
-            dashboardQuestions.push({ q, a, b, c, d, correct });
-            
-            // Bersihkan kolom input untuk soal selanjutnya
-            document.querySelectorAll('input[type="text"], textarea').forEach(el => el.value = '');
-            
-            // Update angka di layar
-            document.getElementById('savedCount').innerText = dashboardQuestions.length;
-            const nextNum = dashboardQuestions.length + 1;
-            if (document.getElementById('questionNumber')) document.getElementById('questionNumber').innerText = nextNum;
-            if (document.getElementById('nextBtnNum')) document.getElementById('nextBtnNum').innerText = nextNum + 1;
-            
-            alert(`Soal ke-${dashboardQuestions.length} tersimpan di memori sementara.`);
-        } else {
-            alert("Harap lengkapi semua kolom teks dan pilih salah satu kunci jawaban!");
-        }
-    };
-
-    // UBAH NAMANYA DI SINI MENJADI finishQuiz (Tanpa 'Creation')
-    window.finishQuiz = function() {
-        if (dashboardQuestions.length > 0) {
-            // Simpan array soal ke LocalStorage lalu pindah halaman
-            localStorage.setItem('ruix_questions', JSON.stringify(dashboardQuestions));
-            window.location.href = 'ongoing.html';
-        } else {
-            alert("Tunggu dulu! Kamu belum membuat minimal 1 soal.");
-        }
-    };
-}
-// ==========================================
-// 5. LOGIKA GURU: ONGOING (KUIS LIVE)
-// ==========================================
-if (document.getElementById('generatedPin')) {
-    const pin = Math.floor(100000 + Math.random() * 900000).toString();
-    document.getElementById('generatedPin').innerText = pin;
-    localStorage.setItem('ruix_active_pin', pin); // Simpan PIN agar Report.html bisa baca
-    
-    const questions = JSON.parse(localStorage.getItem('ruix_questions') || '[]');
-
-    // UPLOAD KE DATABASE
-    set(ref(db, `quizzes/${pin}`), {
-        questions: questions,
-        status: "active",
-        createdAt: new Date().toISOString()
-    });
-
-    // Pantau Murid Masuk - Sesuaikan ID dengan studentList di ongoing.html
-    onChildAdded(ref(db, `quizzes/${pin}/students`), (snapshot) => {
-        const name = snapshot.key;
-        const list = document.getElementById('studentList'); 
-        const countDisplay = document.getElementById('studentCount');
-        const waitMsg = document.getElementById('waitingMessage');
-
-        if (waitMsg) waitMsg.remove(); // Hapus tulisan "Belum ada siswa"
-        if (list) {
-            list.innerHTML += `<div class="bg-black text-white px-4 py-2 rounded-full font-bold uppercase text-sm border-2 border-[#BD00FF]">${name}</div>`;
-            if(countDisplay) countDisplay.innerText = list.children.length;
-        }
-    });
-
-    window.stopQuiz = async function() {
-        if (confirm("Hentikan kuis?")) {
-            await update(ref(db, `quizzes/${pin}`), { status: "finished" });
-            window.location.href = 'report.html';
-        }
-    };
-}
-
-// ==========================================
-// 6. LOGIKA MURID: MASUK KUIS (AMBIL DATA SERVER)
+// 6. SISWA: JOIN KUIS (INDEX.HTML)
 // ==========================================
 if (document.getElementById('quizPin')) {
-    fetchGlobalQuote('quote-text', 'quote-author'); // Pastikan quote muncul di landing murid
+    window.fetchQuote(); 
 
     window.startQuiz = async function() {
         const name = document.getElementById('groupName').value.trim();
         const pin = document.getElementById('quizPin').value.trim();
+        const btn = document.querySelector('button[onclick="startQuiz()"]');
+        
+        if (!name || !pin) return alert("Isi Nama & PIN dulu ya!");
 
-        if (name && pin) {
-            try {
-                // Cek PIN ke Firebase
-                const snapshot = await get(ref(db, `quizzes/${pin}`));
-                
-                if (snapshot.exists() && snapshot.val().status === "active") {
-                    const quizData = snapshot.val();
-                    
-                    // SIMPAN DATA PENTING KE MEMORI MURID
-                    localStorage.setItem('groupName', name);
-                    localStorage.setItem('ruix_active_pin', pin);
-                    // Ambil soal langsung dari database (bukan localStorage kosong)
-                    localStorage.setItem('ruix_questions', JSON.stringify(quizData.questions));
-                    
-                    window.location.href = 'quiz.html';
-                } else {
-                    alert("Waduh, PIN salah atau kuisnya sudah ditutup Pak Guru/Bu Guru!");
-                }
-            } catch (error) {
-                console.error("Gagal koneksi ke database:", error);
-                alert("Koneksi internet bermasalah, coba lagi ya!");
+        if (btn) { 
+            btn.disabled = true; 
+            btn.innerText = "⏳ MENGECEK PIN..."; 
+        }
+
+        try {
+            const snap = await get(ref(db, `quizzes/${pin}`));
+            
+            if (snap.exists() && snap.val().status === "active") {
+                await update(ref(db, `quizzes/${pin}/students/${name}`), { score: 0 });
+                localStorage.setItem('groupName', name);
+                localStorage.setItem('ruix_active_pin', pin);
+                localStorage.setItem('ruix_questions', JSON.stringify(snap.val().questions));
+                window.location.href = 'quiz.html';
+            } else { 
+                alert("Waduh, PIN Salah atau Kuis Sudah Ditutup!"); 
+                if (btn) { btn.disabled = false; btn.innerText = "Ayo Main! 🚀"; }
             }
-        } else {
-            alert("Isi nama kelompok dan PIN kuis dulu ya!");
+        } catch (err) { 
+            alert("Koneksi Error: " + err.message); 
+            if (btn) { btn.disabled = false; btn.innerText = "Ayo Main! 🚀"; }
         }
     };
 }
 
 // ==========================================
-// 7. LOGIKA MURID: MAIN KUIS (SINKRON SKOR)
+// 7. SISWA: PLAYING KUIS (SKOR & TIMER)
 // ==========================================
-if (document.getElementById('timerText')) {
+if (document.getElementById('questionText')) {
     const pin = localStorage.getItem('ruix_active_pin');
     const name = localStorage.getItem('groupName');
-    const questions = JSON.parse(localStorage.getItem('ruix_questions'));
-    let idx = 0, score = 0;
+    const questions = JSON.parse(localStorage.getItem('ruix_questions') || '[]');
+    let idx = 0, score = 0, timerInterval;
 
-    // FITUR PENTING: Murid berhenti jika kuis dihentikan guru
-    onValue(ref(db, `quizzes/${pin}/status`), (snap) => {
-        if (snap.val() === "finished") {
-            localStorage.setItem('finalScore', score);
-            window.location.href = 'result.html';
-        }
-    });
+    const loadQ = () => {
+        if (idx >= questions.length) return endQuiz();
+        
+        const q = questions[idx];
+        document.getElementById('questionText').innerText = q.q;
+        
+        ['A','B','C','D'].forEach(opt => {
+            const textSpan = document.getElementById(`textOpt${opt}`);
+            const btn = textSpan.parentElement;
+            textSpan.innerText = q[opt.toLowerCase()];
+            btn.disabled = false;
+            btn.style.opacity = "1"; 
+        });
+        
+        document.getElementById('currentPoints').innerText = `${score} pts`;
+        document.getElementById('questionCounter').innerText = `${idx + 1}/${questions.length}`;
+        document.getElementById('progressBar').style.width = `${((idx + 1) / questions.length) * 100}%`;
+        
+        startTimer();
+    };
 
-    window.checkAnswer = function(choice) {
+    const startTimer = () => {
+        let time = 15;
+        document.getElementById('timerText').innerText = time;
+        clearInterval(timerInterval);
+        
+        timerInterval = setInterval(() => {
+            time--;
+            document.getElementById('timerText').innerText = time;
+            if (time <= 0) { 
+                clearInterval(timerInterval); 
+                window.checkAnswer(null); 
+            }
+        }, 1000);
+    };
+
+    window.checkAnswer = async function(choice) {
+        clearInterval(timerInterval);
+        const btns = document.querySelectorAll('main button');
+        btns.forEach(b => { b.disabled = true; b.style.opacity = "0.5"; });
+
         if (choice === questions[idx].correct) score += 100;
-        else score -= 50;
-        
-        // Update skor ke Realtime Database
-        update(ref(db, `quizzes/${pin}/students/${name}`), { score: score });
-        
-        idx++;
-        if (idx < questions.length) loadQ();
-        else {
-            localStorage.setItem('finalScore', score);
-            window.location.href = 'result.html';
+        else score = Math.max(0, score - 50);
+
+        try {
+            await update(ref(db, `quizzes/${pin}/students/${name}`), { score: score });
+            idx++;
+            setTimeout(loadQ, 400); 
+        } catch (e) { 
+            console.error(e);
+            idx++; 
+            loadQ(); 
         }
     };
 
-    function loadQ() {
-        const q = questions[idx];
-        document.getElementById('questionText').innerText = q.q;
-        document.getElementById('textOptA').innerText = q.a;
-        document.getElementById('textOptB').innerText = q.b;
-        document.getElementById('textOptC').innerText = q.c;
-        document.getElementById('textOptD').innerText = q.d;
-        // Update progress bar & counter
-        document.getElementById('questionCounter').innerText = `${idx + 1}/${questions.length}`;
-        document.getElementById('progressBar').style.width = `${((idx + 1) / questions.length) * 100}%`;
-    }
+    const endQuiz = () => {
+        localStorage.setItem('finalScore', score);
+        window.location.href = 'result.html';
+    };
+
+    onValue(ref(db, `quizzes/${pin}/status`), (s) => { 
+        if (s.exists() && s.val() === "finished") endQuiz(); 
+    });
+    
     loadQ();
 }
 
 // ==========================================
-// 8. LOGIKA GURU: REPORT (SINKRON MODULAR)
+// 8. SISWA: RESULT TAMPILAN SKOR
+// ==========================================
+if (document.getElementById('finalScoreDisplay')) {
+    window.fetchQuote();
+    const finalScore = parseInt(localStorage.getItem('finalScore') || '0');
+    const qs = JSON.parse(localStorage.getItem('ruix_questions') || '[]');
+    document.getElementById('finalScoreDisplay').innerText = finalScore;
+
+    const stars = [document.getElementById('star1'), document.getElementById('star2'), document.getElementById('star3')];
+    const congrats = document.getElementById('congratsText');
+    const maxScore = qs.length * 100;
+    const ratio = maxScore > 0 ? finalScore / maxScore : 0;
+
+    if (ratio >= 0.8) {
+        stars.forEach(s => s.classList.replace('text-gray-300', 'text-[#BD00FF]'));
+        congrats.innerText = "Masya Allah, Kamu Sempurna!";
+    } else if (ratio >= 0.4) {
+        stars[0].classList.replace('text-gray-300', 'text-[#BD00FF]');
+        stars[1].classList.replace('text-gray-300', 'text-[#BD00FF]');
+        congrats.innerText = "Keren! Tingkatkan Terus!";
+    } else if (ratio > 0) {
+        stars[0].classList.replace('text-gray-300', 'text-[#BD00FF]');
+        congrats.innerText = "Ayo Jangan Menyerah!";
+    } else {
+        congrats.innerText = "Tetap Semangat Mencoba Lagi!";
+    }
+}
+
+// ==========================================
+// 9. GURU: REPORT & KLASEMEN
 // ==========================================
 if (document.getElementById('leaderboard-body')) {
     const pin = localStorage.getItem('ruix_active_pin');
-
-    if (pin) {
-        onValue(ref(db, `quizzes/${pin}/students`), (snap) => {
-            const data = snap.val();
-            const body = document.getElementById('leaderboard-body');
-            if (!body) return;
-            body.innerHTML = ''; 
-            
-            if (data) {
-                const sorted = Object.entries(data)
-                    .map(([id, d]) => ({ name: id, score: d.score || 0 }))
-                    .sort((a, b) => b.score - a.score);
-                
-                sorted.forEach((s, i) => {
-                    const rankStr = (i + 1) < 10 ? `0${i + 1}` : i + 1;
+    
+    onValue(ref(db, `quizzes/${pin}/students`), (snap) => {
+        const body = document.getElementById('leaderboard-body');
+        body.innerHTML = '';
+        
+        if (snap.exists()) {
+            Object.entries(snap.val())
+                .map(([name, d]) => ({ name, score: d.score || 0 }))
+                .sort((a,b) => b.score - a.score)
+                .forEach((s, i) => {
+                    const rank = (i + 1) < 10 ? `0${i + 1}` : i + 1;
                     body.innerHTML += `
                         <tr class="border-2 border-black hover:bg-gray-50 transition-colors">
-                            <td class="p-4 border-2 border-black text-center text-2xl font-black italic">${rankStr}</td>
-                            <td class="p-4 border-2 border-black font-bold uppercase">${s.name}</td>
+                            <td class="p-4 border-2 border-black text-center text-2xl font-black italic">${rank}</td>
+                            <td class="p-4 border-2 border-black uppercase font-bold">${s.name}</td>
                             <td class="p-4 border-2 border-black text-right text-[#BD00FF] font-black">${s.score}</td>
                         </tr>`;
                 });
-            }
-        });
-    }
+        }
+    });
 
     window.exitReport = async function() {
-        if (confirm("DATA KUIS AKAN DIHAPUS PERMANEN. Pastikan sudah dicatat!")) {
-            if (pin) await remove(ref(db, `quizzes/${pin}`)); 
-            localStorage.removeItem('ruix_questions');
-            localStorage.removeItem('ruix_active_pin');
-            window.location.href = 'signin.html';
+        if (confirm("Data skor kuis akan dihapus secara permanen dari server. Pastikan Anda sudah mencatatnya. Lanjutkan?")) {
+            const btns = document.querySelectorAll('button');
+            btns.forEach(b => { b.disabled = true; b.innerText = "MENGHAPUS DATA..."; });
+            
+            const pin = localStorage.getItem('ruix_active_pin');
+            try {
+                if (pin) await remove(ref(db, `quizzes/${pin}`));
+                localStorage.clear();
+                window.location.href = 'signin.html';
+            } catch (err) {
+                alert("Gagal menghapus data: " + err.message);
+                btns.forEach(b => { b.disabled = false; b.innerText = "Keluar Ke Sign In 🚪"; });
+            }
         }
     };
-}
-// ==========================================
-// 9. LOGIKA MURID: RESULT (SKOR AKHIR)
-// ==========================================
-if (document.getElementById('finalScoreDisplay')) {
-    const score = parseInt(localStorage.getItem('finalScore') || '0');
-    document.getElementById('finalScoreDisplay').innerText = score.toLocaleString();
-    
-    // Warnai Bintang
-    if (score >= 800) {
-        document.getElementById('star1').classList.replace('text-gray-300', 'text-[#BD00FF]');
-        document.getElementById('star2').classList.replace('text-gray-300', 'text-[#BD00FF]');
-        document.getElementById('star3').classList.replace('text-gray-300', 'text-[#BD00FF]');
-        document.getElementById('congratsText').innerText = "Masya Allah, Kamu Pintar!";
-    } else if (score >= 500) {
-        document.getElementById('star1').classList.replace('text-gray-300', 'text-[#BD00FF]');
-        document.getElementById('star2').classList.replace('text-gray-300', 'text-[#BD00FF]');
-        document.getElementById('congratsText').innerText = "Keren! Tingkatkan lagi ya!";
-    } else {
-        document.getElementById('star1').classList.replace('text-gray-300', 'text-[#BD00FF]');
-        document.getElementById('congratsText').innerText = "Jangan Menyerah, Ayo Belajar Lagi!";
-    }
-
-    fetchGlobalQuote('quote-text', 'quote-author');
 }
